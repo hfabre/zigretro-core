@@ -7,6 +7,7 @@ const video_height = 150;
 const bpp = 4;
 const speed = 1;
 const video_pixels = video_height * video_width;
+const pitch = bpp * video_width * @sizeOf(u8);
 const allocator = std.heap.c_allocator;
 
 var player_x: i32 = 0;
@@ -48,7 +49,7 @@ export fn retro_run() void {
     draw_rectangle(0, 0, video_width, video_height, black);
     draw_rectangle(player_x, player_y, 20, 20, white);
     screen_to_frame_buffer();
-    video_cb.?(@ptrCast(*anyopaque, frame_buffer.ptr), video_width, video_height, bpp * video_width * @sizeOf(u8));
+    video_cb.?(@ptrCast(*anyopaque, frame_buffer.ptr), video_width, video_height, pitch);
 }
 
 fn process_inputs() void {
