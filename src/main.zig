@@ -1,18 +1,12 @@
 const std = @import("std");
 const print = @import("std").debug.print;
 const lr = @cImport(@cInclude("libretro.h"));
+const ngn = @import("engine.zig");
 
-const video_width = 200;
-const video_height = 150;
-const bpp = 4;
-const speed = 1;
-const video_pixels = video_height * video_width;
-const pitch = bpp * video_width * @sizeOf(u8);
 const allocator = std.heap.c_allocator;
 
-var player_x: i32 = 0;
-var player_y: i32 = 0;
 var key_map = std.AutoHashMap(c_uint, Key).init(allocator);
+var engine: ngn.Engine = undefined;
 
 const Key = enum {
     up,
@@ -21,35 +15,20 @@ const Key = enum {
     right
 };
 
-const Color = struct {
-    a: u8,
-    r: u8,
-    g: u8,
-    b: u8
-};
+// Utils
 
-const black = Color {
-    .a = 0,
-    .r = 0,
-    .g = 0,
-    .b = 0
-};
-
-const white = Color {
-    .a = 0,
-    .r = 255,
-    .g = 255,
-    .b = 255
-};
+pub fn handle_error(message: []const u8) void {
+    std.log.info("{s}", .{message});
+    // TODO: environ_cb.?(lr.RETRO_ENVIRONMENT_SHUTDOWN, null)
+    std.os.exit(1);
+}
 
 // Logic
 
 export fn retro_run() void {
     process_inputs();
-    draw_rectangle(0, 0, video_width, video_height, black);
-    draw_rectangle(player_x, player_y, 20, 20, white);
-    screen_to_frame_buffer();
-    video_cb.?(@ptrCast(*anyopaque, frame_buffer.ptr), video_width, video_height, pitch);
+    engine.run();
+    video_cb.?(@ptrCast(*anyopaque, engine.framebuffer.ptr), engine.width, engine.height, engine.pitch);
 }
 
 fn process_inputs() void {
@@ -60,62 +39,22 @@ fn process_inputs() void {
 
         if (pressed != 0) {
             switch (kv.value_ptr.*) {
-                Key.up => player_y -= speed,
-                Key.down => player_y += speed,
-                Key.right => player_x += speed,
-                Key.left => player_x -= speed
+                Key.up => engine.up_pressed(),
+                Key.down => engine.down_pressed(),
+                Key.right => engine.right_pressed(),
+                Key.left => engine.left_pressed(),
             }
         }
     }
 }
 
-// Utils functions
-
-fn draw_rectangle(x: i32, y: i32, w: i32, h: i32, color: Color) void {
-    var i: usize = @intCast(usize, y);
-
-    while (i < y + h) {
-        var j: usize = @intCast(usize, x);
-
-        while (j < x + w) {
-            screen[i][j] = color;
-            j += 1;
-        }
-        i += 1;
-    }
-}
-
-fn screen_to_frame_buffer() void {
-    var y: usize = 0;
-
-    while (y < video_height) {
-        var x: usize = 0;
-
-        while (x < video_width) {
-            var pixel = screen[y][x];
-            var pixel_index = y * video_width + x;
-            var base_index = pixel_index * bpp;
-
-            frame_buffer[base_index] = pixel.r;
-            frame_buffer[base_index + 1] = pixel.g;
-            frame_buffer[base_index + 2] = pixel.b;
-            frame_buffer[base_index + 3] = pixel.a;
-            x += 1;
-        }
-        y += 1;
-    }
-}
-
-
 // Init
 
-var frame_buffer: []u8 = undefined;
-var screen: [video_height][video_width]Color = undefined;
-
 export fn retro_init() void {
-    frame_buffer = allocator.alloc(u8, video_pixels * bpp) catch {
+    engine = ngn.Engine.init(allocator) catch {
         handle_error("Could not allocate memory");
-        // Trick to avoid error: expected type '[]u8', found 'void'
+
+        // Trick: expected type 'engine.Engine', found 'void'
         return;
     };
 
@@ -136,14 +75,8 @@ export fn retro_init() void {
     };
 }
 
-fn handle_error(message: []const u8) void {
-    std.log.info("{s}", .{message});
-    // TODO: environ_cb.?(lr.RETRO_ENVIRONMENT_SHUTDOWN, null)
-    std.os.exit(1);
-}
-
 export fn retro_deinit() void {
-    allocator.free(frame_buffer);
+    engine.deinit();
     key_map.deinit();
 }
 
@@ -215,10 +148,10 @@ export fn retro_get_system_info(info: [*c]lr.struct_retro_system_info) void {
 }
 
 export fn retro_get_system_av_info(info: [*c]lr.retro_system_av_info) void {
-    info.*.geometry.base_width = video_width;
-    info.*.geometry.base_height = video_height;
-    info.*.geometry.max_width = video_width;
-    info.*.geometry.max_height = video_height;
+    info.*.geometry.base_width = engine.width;
+    info.*.geometry.base_height = engine.height;
+    info.*.geometry.max_width = engine.width;
+    info.*.geometry.max_height = engine.height;
     info.*.geometry.aspect_ratio = 0.0;
 }
 
