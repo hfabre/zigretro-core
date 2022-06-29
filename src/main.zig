@@ -6,7 +6,7 @@ const ngn = @import("engine.zig");
 const allocator = std.heap.c_allocator;
 
 var key_map = std.AutoHashMap(c_uint, Key).init(allocator);
-var engine: ngn.Engine = undefined;
+pub var engine: ngn.Engine = undefined;
 
 const Key = enum {
     up,
@@ -52,7 +52,7 @@ fn process_inputs() void {
 
 export fn retro_init() void {
     engine = ngn.Engine.init(allocator) catch {
-        handle_error("Could not allocate memory");
+        handle_error("Failed to init engine");
 
         // Trick: expected type 'engine.Engine', found 'void'
         return;
@@ -88,8 +88,7 @@ export fn retro_set_environment(cb: lr.retro_environment_t) void {
         log_cb = logging.log;
     }
 
-     if (cb.?(lr.RETRO_ENVIRONMENT_SET_SUPPORT_NO_GAME, &allow_no_game)) {}
-     else {
+     if (cb.?(lr.RETRO_ENVIRONMENT_SET_SUPPORT_NO_GAME, &allow_no_game)) {
         print("Unable to allow no game booting\n", .{});
         return;
      }

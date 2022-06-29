@@ -1,5 +1,7 @@
 const std = @import("std");
+const mruby = @import("mruby");
 const clr = @import("color.zig");
+const main = @import("main.zig");
 
 // Trick: i have some trouble to implement this inside the Engine struct
 // Got some tips about using allocation but prefer to avoid if possible
@@ -18,15 +20,31 @@ pub const Engine = struct {
     pitch: u32,
     framebuffer: []u8,
     allocator: std.mem.Allocator,
+    mrb: *mruby.mrb_state,
     // TODO: Extract this in a GameState
     x: u32,
     y: u32,
 
-
     pub fn init(allocator: std.mem.Allocator) !Engine {
+        std.log.info("{s}", .{"booting engine"});
         var screen_size = width * height;
         var framebuffer = try allocator.alloc(u8, screen_size * bpp);
 
+        std.log.info("{s}", .{"init mruby"});
+        // var mrb_alloc = mruby.MrubyAllocator.init(allocator);
+        // var new_mrb = try mruby.open_allocator(&mrb_alloc);
+        var new_mrb = try mruby.open();
+
+        std.log.debug("{s}", .{"setup color class"});
+        color_class = try new_mrb.define_class("Color", new_mrb.object_class());
+        new_mrb.define_method(color_class, "initialize", mrb_initialize_color, .{ .req = 0 });
+
+        new_mrb.define_module_function(new_mrb.kernel_module(), "draw_rect", mrb_draw_rect, .{ .req = 5 });
+
+        std.log.info("{s}", .{"load mruby game"});
+        _ = try new_mrb.load_file("/Users/hfabre/local/perso/zig/zigretro-core/src/game.rb");
+
+        std.log.info("{s}", .{"engine ready"});
         return Engine {
             .allocator = allocator,
             .width = width,
@@ -34,18 +52,21 @@ pub const Engine = struct {
             .screen_size = screen_size,
             .pitch = bpp * width * @sizeOf(u8),
             .framebuffer = framebuffer,
+            .mrb = new_mrb,
             .x = 0,
             .y = 0
         };
     }
 
     pub fn deinit(self: Engine) void {
+        self.mrb.close();
         self.allocator.free(self.framebuffer);
     }
 
     pub fn run(self: Engine) void {
         self.draw_rectangle(0, 0, self.width, self.height, clr.black);
-        self.draw_rectangle(self.x, self.y, 20, 20, clr.white);
+        _ = self.mrb.funcall(self.mrb.kernel_module().value(), "run", .{});
+        // self.draw_rectangle(self.x, self.y, 20, 20, clr.white);
         self.screen_to_frame_buffer();
     }
 
@@ -76,10 +97,10 @@ pub const Engine = struct {
                 var pixel_index = y * width + x;
                 var base_index = pixel_index * bpp;
 
-                self.framebuffer[base_index] = pixel.r;
-                self.framebuffer[base_index + 1] = pixel.g;
-                self.framebuffer[base_index + 2] = pixel.b;
-                self.framebuffer[base_index + 3] = pixel.a;
+                self.framebuffer[base_index] = @intCast(u8, pixel.r);
+                self.framebuffer[base_index + 1] = @intCast(u8, pixel.g);
+                self.framebuffer[base_index + 2] = @intCast(u8, pixel.b);
+                self.framebuffer[base_index + 3] = 0; // Libretro does not handle transparency
                 x += 1;
             }
             y += 1;
@@ -87,6 +108,7 @@ pub const Engine = struct {
     }
 
     fn draw_rectangle(_: Engine, x: u32, y: u32, w: u32, h: u32, color: clr.Color) void {
+
         var i: usize = @intCast(usize, y);
 
         while (i < y + h) {
@@ -100,3 +122,70 @@ pub const Engine = struct {
         }
     }
 };
+
+// Mruby things
+
+var color_class: *mruby.RClass = undefined;
+const color_descriptor = mruby.mrb_data_type {
+    .struct_name = "Color",
+    .dfree = colorFree,
+};
+
+pub export fn colorFree(mrb: *mruby.mrb_state, ptr: *anyopaque) void {
+    _ = mrb;
+    const data = @ptrCast(*clr.Color, @alignCast(@alignOf(clr.Color), ptr));
+    const allocator = main.engine.allocator;
+    std.log.debug("Freeing color!", .{});
+    allocator.destroy(data);
+}
+
+pub export fn mrb_initialize_color(mrb: *mruby.mrb_state, self: mruby.mrb_value) mruby.mrb_value {
+    // var color_data = main.engine.allocator.create(clr.Color) catch {
+    //     main.handle_error("Failed to allocate color data");
+    //     return self;
+    // };
+
+    // color_data.* = clr.Color {
+    //     .r = 255,
+    //     .g = 255,
+    //     .b = 255,
+    // };
+
+    // const data_obj = mrb.data_object_alloc(color_class, color_data, &color_descriptor) catch {
+    //     main.handle_error("Failed to allocate color instance");
+    //     return self;
+    // };
+
+    mrb.iv_set(self, mrb.intern("@r"), mruby.mrb_int_value(mrb, 255));
+    mrb.iv_set(self, mrb.intern("@g"), mruby.mrb_int_value(mrb, 255));
+    mrb.iv_set(self, mrb.intern("@b"), mruby.mrb_int_value(mrb, 255));
+    std.log.info("object id in init {d}", .{mruby.mrb_obj_id(self)});
+    // return data_obj.value();
+    return self;
+}
+
+pub export fn mrb_draw_rect(mrb: *mruby.mrb_state, self: mruby.mrb_value) mruby.mrb_value {
+   var x: mruby.mrb_int = 0;
+   var y: mruby.mrb_int = 0;
+   var w: mruby.mrb_int = 0;
+   var h: mruby.mrb_int = 0;
+   var mrb_c: mruby.mrb_value = undefined;
+  // var mrb_c: *clr.Color = undefined;
+
+    std.log.info("{s}", .{"before getting args"});
+   _ = mrb.get_args("iiiio", .{ &x, &y, &w, &h, &mrb_c });
+   std.log.info("{s}", .{"after getting args"});
+
+    std.log.info("object id in draw {d}", .{mruby.mrb_obj_id(self)});
+
+    // Here no matter what i do i'm always getting 0 in those instance variable
+    var r = mrb.iv_get(self, mrb.intern("@r"));
+    var rr = mruby.mrb_get_integer(r);
+    var c = clr.Color {
+        .r = rr,
+        .g = mruby.mrb_get_integer(mrb.iv_get(self, mrb.intern("@g"))),
+        .b = mruby.mrb_get_integer(mrb.iv_get(self, mrb.intern("@b")))
+    };
+   main.engine.draw_rectangle(@intCast(u32, x), @intCast(u32, y), @intCast(u32, w), @intCast(u32, h), c);
+   return self;
+}
