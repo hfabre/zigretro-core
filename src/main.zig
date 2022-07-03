@@ -51,12 +51,7 @@ fn process_inputs() void {
 // Init
 
 export fn retro_init() void {
-    engine = ngn.Engine.init(allocator) catch {
-        handle_error("Failed to init engine");
-
-        // Trick: expected type 'engine.Engine', found 'void'
-        return;
-    };
+    engine = ngn.Engine.init(allocator) catch unreachable;
 
     key_map.put(lr.RETRO_DEVICE_ID_JOYPAD_UP, Key.up) catch {
         handle_error("Could not allocate memory");
