@@ -36,9 +36,9 @@ pub const Engine = struct {
         // var new_mrb = try mruby.open_allocator(&mrb_alloc);
         var new_mrb = try mruby.open();
 
-        std.log.debug("setup color class", .{});
         color_class = try new_mrb.define_class("Color", new_mrb.object_class());
-        new_mrb.define_method(color_class, "initialize", mrb_initialize_color, .{ .req = 0 });
+        new_mrb.define_method(color_class, "initialize", mrb_initialize_color, .{ .req = 3 });
+        _ = new_mrb.load_string(@embedFile("/Users/hfabre/local/perso/zig/zigretro-core/src/mruby_ext.rb"));
 
         new_mrb.define_module_function(new_mrb.kernel_module(), "draw_rect", mrb_draw_rect, .{ .req = 5 });
 
@@ -97,9 +97,9 @@ pub const Engine = struct {
                 var pixel_index = y * width + x;
                 var base_index = pixel_index * bpp;
 
-                self.framebuffer[base_index] = @intCast(u8, pixel.r);
+                self.framebuffer[base_index] = @intCast(u8, pixel.b);
                 self.framebuffer[base_index + 1] = @intCast(u8, pixel.g);
-                self.framebuffer[base_index + 2] = @intCast(u8, pixel.b);
+                self.framebuffer[base_index + 2] = @intCast(u8, pixel.r);
                 self.framebuffer[base_index + 3] = 0; // Libretro does not handle transparency
                 x += 1;
             }
@@ -126,9 +126,14 @@ pub const Engine = struct {
 // Mruby things
 
 pub export fn mrb_initialize_color(mrb: *mruby.mrb_state, self: mruby.mrb_value) mruby.mrb_value {
-    mrb.iv_set(self, mrb.intern("@r"), mrb.int_value(255));
-    mrb.iv_set(self, mrb.intern("@g"), mrb.int_value(255));
-    mrb.iv_set(self, mrb.intern("@b"), mrb.int_value(255));
+    var r: mruby.mrb_int = 0;
+    var g: mruby.mrb_int = 0;
+    var b: mruby.mrb_int = 0;
+
+    _ = mrb.get_args("iii", .{ &r, &g, &b });
+    mrb.iv_set(self, mrb.intern("@r"), mrb.int_value(r));
+    mrb.iv_set(self, mrb.intern("@g"), mrb.int_value(g));
+    mrb.iv_set(self, mrb.intern("@b"), mrb.int_value(b));
     return self;
 }
 

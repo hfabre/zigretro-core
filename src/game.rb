@@ -1,9 +1,5 @@
 def run
-  puts "before new color"
-  color = Color.new
-  p color # It works i get values inside my instance variables
-  p color.object_id
-  puts "after new color"
-  draw_rect(0, 0, 10, 10, color)
-  puts "after drawn"
+  draw_rect(0, 0, 10, 10, RED)
+  draw_rect(10, 10, 10, 10, GREEN)
+  draw_rect(20, 20, 10, 10, BLUE)
 end
