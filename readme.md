@@ -3,8 +3,8 @@
 This is a [libretro](https://www.libretro.com/index.php/api/) [core](https://docs.libretro.com/development/cores/developing-cores/) implementation. Keep in mind thats my first take on writing
 a libretro core and my first time using [Zig](https://ziglang.org/).
 
-At the moment this is a very simple implementation but it includes [mruby](https://github.com/dantecatalfamo/mruby-zig)
-so the core can be scripted using it.
+At the moment this is a very simple game scene with a moving square which you can script using [mruby](https://github.com/dantecatalfamo/mruby-zig).
+To do so, simply edit the `game.rb` file as you want.
 
 ## Usage
 
@@ -34,10 +34,7 @@ path/to/retroarch -v -L path/to/this/repo/lib/libzigretro-core.{dylib,so}
 
 ## Steps
 
-- Print a rectangle (Handle the frame buffer and draw a AA rectangle to it)
-- Handle input
-- Minimal game scene (moving square)
-- Include [mruby](https://mruby.org/) so you can script your core in ruby
+- Think to a better way to share input from core to ruby script
 
 ## Very uncertain next steps
 
