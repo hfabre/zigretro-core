@@ -38,12 +38,12 @@ pub const Engine = struct {
 
         color_class = try new_mrb.define_class("Color", new_mrb.object_class());
         new_mrb.define_method(color_class, "initialize", mrb_initialize_color, .{ .req = 3 });
-        _ = new_mrb.load_string(@embedFile("/Users/hfabre/local/perso/zig/zigretro-core/src/mruby_ext.rb"));
+        _ = new_mrb.load_string(@embedFile("./mruby_ext.rb"));
 
         new_mrb.define_module_function(new_mrb.kernel_module(), "draw_rect", mrb_draw_rect, .{ .req = 5 });
 
         std.log.info("load mruby game", .{});
-        _ = try new_mrb.load_file("/Users/hfabre/local/perso/zig/zigretro-core/src/game.rb");
+        _ = try new_mrb.load_file("./src/game.rb");
 
         std.log.info("engine ready", .{});
         return Engine {
