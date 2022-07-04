@@ -70,20 +70,24 @@ pub const Engine = struct {
         self.screen_to_frame_buffer();
     }
 
-    pub fn up_pressed(self: *Engine) void {
-        self.y -= speed;
+    pub fn up_press(self: *Engine) void {
+        _ = self.mrb.funcall(self.mrb.kernel_module().value(), "up_press", .{});
     }
 
-    pub fn down_pressed(self: *Engine) void {
-        self.y += speed;
+    pub fn down_press(self: *Engine) void {
+        _ = self.mrb.funcall(self.mrb.kernel_module().value(), "down_press", .{});
     }
 
-    pub fn right_pressed(self: *Engine) void {
-        self.x += speed;
+    pub fn right_press(self: *Engine) void {
+        _ = self.mrb.funcall(self.mrb.kernel_module().value(), "right_press", .{});
     }
 
-    pub fn left_pressed(self: *Engine) void {
-        self.x -= speed;
+    pub fn left_press(self: *Engine) void {
+        _ = self.mrb.funcall(self.mrb.kernel_module().value(), "left_press", .{});
+    }
+
+    pub fn start_press(self: *Engine) void {
+        _ = self.mrb.funcall(self.mrb.kernel_module().value(), "start_press", .{});
     }
 
     fn screen_to_frame_buffer(self: Engine) void {

@@ -12,7 +12,8 @@ const Key = enum {
     up,
     down,
     left,
-    right
+    right,
+    start
 };
 
 // Utils
@@ -39,10 +40,11 @@ fn process_inputs() void {
 
         if (pressed != 0) {
             switch (kv.value_ptr.*) {
-                Key.up => engine.up_pressed(),
-                Key.down => engine.down_pressed(),
-                Key.right => engine.right_pressed(),
-                Key.left => engine.left_pressed(),
+                Key.up => engine.up_press(),
+                Key.down => engine.down_press(),
+                Key.right => engine.right_press(),
+                Key.left => engine.left_press(),
+                Key.start => engine.start_press(),
             }
         }
     }
@@ -66,6 +68,10 @@ export fn retro_init() void {
     };
 
     key_map.put(lr.RETRO_DEVICE_ID_JOYPAD_LEFT, Key.left) catch {
+        handle_error("Could not allocate memory");
+    };
+
+    key_map.put(lr.RETRO_DEVICE_ID_JOYPAD_START, Key.start) catch {
         handle_error("Could not allocate memory");
     };
 }
