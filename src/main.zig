@@ -6,13 +6,14 @@ const ngn = @import("engine.zig");
 const allocator = std.heap.c_allocator;
 
 var key_map = std.AutoHashMap(c_uint, Key).init(allocator);
-var engine: ngn.Engine = undefined;
+pub var engine: ngn.Engine = undefined;
 
 const Key = enum {
     up,
     down,
     left,
-    right
+    right,
+    start
 };
 
 // Utils
@@ -39,10 +40,11 @@ fn process_inputs() void {
 
         if (pressed != 0) {
             switch (kv.value_ptr.*) {
-                Key.up => engine.up_pressed(),
-                Key.down => engine.down_pressed(),
-                Key.right => engine.right_pressed(),
-                Key.left => engine.left_pressed(),
+                Key.up => engine.up_press(),
+                Key.down => engine.down_press(),
+                Key.right => engine.right_press(),
+                Key.left => engine.left_press(),
+                Key.start => engine.start_press(),
             }
         }
     }
@@ -51,12 +53,7 @@ fn process_inputs() void {
 // Init
 
 export fn retro_init() void {
-    engine = ngn.Engine.init(allocator) catch {
-        handle_error("Could not allocate memory");
-
-        // Trick: expected type 'engine.Engine', found 'void'
-        return;
-    };
+    engine = ngn.Engine.init(allocator) catch unreachable;
 
     key_map.put(lr.RETRO_DEVICE_ID_JOYPAD_UP, Key.up) catch {
         handle_error("Could not allocate memory");
@@ -73,6 +70,10 @@ export fn retro_init() void {
     key_map.put(lr.RETRO_DEVICE_ID_JOYPAD_LEFT, Key.left) catch {
         handle_error("Could not allocate memory");
     };
+
+    key_map.put(lr.RETRO_DEVICE_ID_JOYPAD_START, Key.start) catch {
+        handle_error("Could not allocate memory");
+    };
 }
 
 export fn retro_deinit() void {
@@ -82,20 +83,13 @@ export fn retro_deinit() void {
 
 export fn retro_set_environment(cb: lr.retro_environment_t) void {
     environ_cb = cb;
-    var allow_no_game = true;
 
     if (cb.?(lr.RETRO_ENVIRONMENT_GET_LOG_INTERFACE, &logging)) {
         log_cb = logging.log;
     }
-
-     if (cb.?(lr.RETRO_ENVIRONMENT_SET_SUPPORT_NO_GAME, &allow_no_game)) {}
-     else {
-        print("Unable to allow no game booting\n", .{});
-        return;
-     }
 }
 
-export fn retro_load_game(_: [*c]lr.retro_game_info) bool {
+export fn retro_load_game(game_info: [*c]lr.retro_game_info) bool {
     // Use a format where one pixel is composed by 4 bytes (A - R - G - B each of them is 1 byte)
     var fmt = lr.RETRO_PIXEL_FORMAT_XRGB8888;
     if (!environ_cb.?(lr.RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &fmt))
@@ -104,6 +98,9 @@ export fn retro_load_game(_: [*c]lr.retro_game_info) bool {
         return false;
     }
 
+    engine.load_game(@ptrCast([*:0]const u8, game_info.*.path)) catch {
+        handle_error("Failed to load game, make sure the path is correct");
+    };
     return true;
 }
 
