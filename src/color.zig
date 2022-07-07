@@ -1,9 +1,7 @@
-const mruby = @import("mruby");
-
 pub const Color = struct {
-    r: mruby.mrb_int,
-    g: mruby.mrb_int,
-    b: mruby.mrb_int
+    r: u8,
+    g: u8,
+    b: u8
 };
 
 pub const black = Color {

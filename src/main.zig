@@ -83,19 +83,13 @@ export fn retro_deinit() void {
 
 export fn retro_set_environment(cb: lr.retro_environment_t) void {
     environ_cb = cb;
-    var allow_no_game = true;
 
     if (cb.?(lr.RETRO_ENVIRONMENT_GET_LOG_INTERFACE, &logging)) {
         log_cb = logging.log;
     }
-
-     if (cb.?(lr.RETRO_ENVIRONMENT_SET_SUPPORT_NO_GAME, &allow_no_game)) {
-        print("Unable to allow no game booting\n", .{});
-        return;
-     }
 }
 
-export fn retro_load_game(_: [*c]lr.retro_game_info) bool {
+export fn retro_load_game(game_info: [*c]lr.retro_game_info) bool {
     // Use a format where one pixel is composed by 4 bytes (A - R - G - B each of them is 1 byte)
     var fmt = lr.RETRO_PIXEL_FORMAT_XRGB8888;
     if (!environ_cb.?(lr.RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &fmt))
@@ -104,6 +98,9 @@ export fn retro_load_game(_: [*c]lr.retro_game_info) bool {
         return false;
     }
 
+    engine.load_game(@ptrCast([*:0]const u8, game_info.*.path)) catch {
+        handle_error("Failed to load game, make sure the path is correct");
+    };
     return true;
 }
 

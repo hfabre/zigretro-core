@@ -22,9 +22,6 @@ pub const Engine = struct {
     framebuffer: []u8,
     allocator: std.mem.Allocator,
     mrb: *mruby.mrb_state,
-    // TODO: Extract this in a GameState
-    x: u32,
-    y: u32,
 
     pub fn init(allocator: std.mem.Allocator) !Engine {
         std.log.info("booting engine", .{});
@@ -42,9 +39,6 @@ pub const Engine = struct {
 
         new_mrb.define_module_function(new_mrb.kernel_module(), "draw_rect", mrb_draw_rect, .{ .req = 5 });
 
-        std.log.info("load mruby game", .{});
-        _ = try new_mrb.load_file("./src/game.rb");
-
         std.log.info("engine ready", .{});
         return Engine {
             .allocator = allocator,
@@ -54,8 +48,6 @@ pub const Engine = struct {
             .pitch = bpp * width * @sizeOf(u8),
             .framebuffer = framebuffer,
             .mrb = new_mrb,
-            .x = 0,
-            .y = 0
         };
     }
 
@@ -68,6 +60,10 @@ pub const Engine = struct {
         self.draw_rectangle(0, 0, self.width, self.height, clr.black);
         _ = self.mrb.funcall(self.mrb.kernel_module().value(), "run", .{});
         self.screen_to_frame_buffer();
+    }
+
+    pub fn load_game(self: Engine, path: [*:0]const u8) !void {
+        _ = try self.mrb.load_file(path);
     }
 
     pub fn up_press(self: *Engine) void {
@@ -101,9 +97,9 @@ pub const Engine = struct {
                 var pixel_index = y * width + x;
                 var base_index = pixel_index * bpp;
 
-                self.framebuffer[base_index] = @intCast(u8, pixel.b);
-                self.framebuffer[base_index + 1] = @intCast(u8, pixel.g);
-                self.framebuffer[base_index + 2] = @intCast(u8, pixel.r);
+                self.framebuffer[base_index] = pixel.b;
+                self.framebuffer[base_index + 1] = pixel.g;
+                self.framebuffer[base_index + 2] = pixel.r;
                 self.framebuffer[base_index + 3] = 0; // Libretro does not handle transparency
                 x += 1;
             }
@@ -154,9 +150,9 @@ pub export fn mrb_draw_rect(mrb: *mruby.mrb_state, self: mruby.mrb_value) mruby.
     const g = mrb.iv_get(mrb_color, mrb.intern("@g")).integer() catch unreachable;
     const b = mrb.iv_get(mrb_color, mrb.intern("@b")).integer() catch unreachable;
     var c = clr.Color {
-        .r = r,
-        .g = g,
-        .b = b,
+        .r = @intCast(u8, r),
+        .g = @intCast(u8, g),
+        .b = @intCast(u8, b),
     };
     main.engine.draw_rectangle(@intCast(u32, x), @intCast(u32, y), @intCast(u32, w), @intCast(u32, h), c);
     return self;
