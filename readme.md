@@ -1,4 +1,4 @@
-# Dretro-core
+# Zigretro-core
 
 This is a [libretro](https://www.libretro.com/index.php/api/) [core](https://docs.libretro.com/development/cores/developing-cores/) implementation. Keep in mind thats my first take on writing
 a libretro core and my first time using [Zig](https://ziglang.org/).
