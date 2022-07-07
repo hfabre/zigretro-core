@@ -9,13 +9,11 @@ To do so, simply edit the `game.rb` file as you want.
 ## Usage
 
 Make sure to have Zig installed and available into your path.
-
 If you have done any changes to the mruby tree, don't forget to build it again.
-To do so, you will need to insall [rake](https://github.com/ruby/rake)
 
 ```sh
 cd mruby/mruby
-rake
+./minirake
 ```
 
 Build the core using zig:
@@ -27,7 +25,7 @@ zig build
 Run [retroach](https://www.retroarch.com/), of course it should run with any [libretro front](https://docs.libretro.com/development/frontends/), but that's the one i'am using:
 
 ```sh
-path/to/retroarch -v -L path/to/this/repo/lib/libzigretro-core.{dylib,so}
+path/to/retroarch -v -L path/to/this/repo/lib/libzigretro-core.{dylib,so} ./src/game.rb
 ```
 
 `-v` option is optional i use it to debug my core since it makes retroarch verbose.
